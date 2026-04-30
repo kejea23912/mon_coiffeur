@@ -1,0 +1,13 @@
+[project]
+name = "mon-coiffeur"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "google-api-python-client>=2.195.0",
+    "google-auth>=2.50.0",
+    "pandas>=3.0.2",
+    "python-dotenv>=1.2.2",
+    "streamlit>=1.57.0",
+]
