@@ -84,14 +84,14 @@ Votre rendez-vous est confirmé !
 # --- Google Calendar ---
 def ajouter_au_calendar(nom, date_rdv, heure, prestation):
     try:
-        credentials = service_account.Credentials.from_service_account_file(
-            "credentials.json",
+        service_account_info = dict(st.secrets["gcp_service_account"])
+        credentials = service_account.Credentials.from_service_account_info(
+            service_account_info,
             scopes=["https://www.googleapis.com/auth/calendar"]
         )
 
         service = build("calendar", "v3", credentials=credentials)
 
-        # Construire la date et heure de début et fin
         heure_debut = datetime.strptime(f"{date_rdv} {heure}", "%Y-%m-%d %H:%M")
         heure_fin = heure_debut + timedelta(minutes=30)
 
