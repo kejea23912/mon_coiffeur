@@ -48,6 +48,16 @@ def charger_rdv():
     conn.close()
     return df
 
+def heures_prises(date_rdv):
+    conn = sqlite3.connect("reservations.db")
+    cursor = conn.execute(
+        "SELECT heure FROM reservations WHERE date = ?", 
+        (str(date_rdv),)
+    )
+    heures = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return heures
+
 # --- Email ---
 def envoyer_email(nom, email_client, date_rdv, heure, prestation):
     try:
@@ -93,7 +103,7 @@ def ajouter_au_calendar(nom, date_rdv, heure, prestation):
         service = build("calendar", "v3", credentials=credentials)
 
         heure_debut = datetime.strptime(f"{date_rdv} {heure}", "%Y-%m-%d %H:%M")
-        heure_fin = heure_debut + timedelta(minutes=30)
+        heure_fin = heure_debut + timedelta(minutes=45)
 
         evenement = {
             "summary": f"✂️ {prestation} — {nom}",
@@ -137,14 +147,24 @@ if page == "📅 Réserver":
     with col1:
         date_rdv = st.date_input("📅 Choisissez une date", min_value=date.today())
     with col2:
-        heure_rdv = st.selectbox("🕐 Choisissez une heure", [
-            "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-            "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"
-        ])
+        toutes_les_heures = [
+            "09:00", "09:45", "10:30", "11:15", "12:00", "12:45", "13:30",
+            "14:15", "15:00", "16:00", "16:45", "17:30", "18:15", "19:00",
+            "19:45", "20:30", "21:15","22:00" , "22:45"
+        ]
+
+    heures_occupees = heures_prises(date_rdv)
+    heures_disponibles = [h for h in toutes_les_heures if h not in heures_occupees]
+
+    if heures_disponibles:
+        heure_rdv = st.selectbox("🕐 Choisissez une heure", heures_disponibles)
+    else:
+        st.error("⚠️ Aucune heure disponible pour cette date, choisissez une autre date.")
+        st.stop()
 
     prestation = st.selectbox("✂️ Prestation souhaitée", [
-        "Coupe homme", "Coupe femme", "Coupe enfant",
-        "Coupe + barbe", "Coloration",
+        "Coupe homme", "Coupe + Barbe", "Coupe enfant",
+        "Taper ou rafrechisment", "Barbe", " Petit barbe",
     ])
 
     st.divider()
