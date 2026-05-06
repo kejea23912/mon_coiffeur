@@ -164,7 +164,7 @@ if page == "📅 Réserver":
 
     prestation = st.selectbox("✂️ Prestation souhaitée", [
         "Coupe homme", "Coupe + Barbe", "Coupe enfant",
-        "Taper ou rafrechisment", "Barbe", " Petit barbe",
+        "Taper ou rafrechisment", "Barbe", " Petite barbe",
     ])
 
     st.divider()
@@ -186,8 +186,14 @@ if page == "📅 Réserver":
 elif page == "📋 Mes rendez-vous":
     st.title("📋 Mes rendez-vous")
     st.divider()
-    df = charger_rdv()
-    if df.empty:
-        st.info("Aucun rendez-vous pour le moment.")
-    else:
-        st.dataframe(df, use_container_width=True)
+
+    mot_de_passe = st.text_input("🔒 Mot de passe", type="password")
+
+    if mot_de_passe == os.getenv("ADMIN_PASSWORD"):
+        df = charger_rdv()
+        if df.empty:
+            st.info("Aucun rendez-vous pour le moment.")
+        else:
+            st.dataframe(df, use_container_width=True)
+    elif mot_de_passe != "":
+        st.error("❌ Mot de passe incorrect !")
