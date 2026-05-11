@@ -1,6 +1,5 @@
 import streamlit as st
 from datetime import date, datetime, timedelta
-import sqlite3
 import pandas as pd
 import smtplib
 from email.mime.text import MIMEText
@@ -16,47 +15,68 @@ GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
 CALENDAR_ID = os.getenv("CALENDAR_ID")
 
-# --- Base de données ---
-def init_db():
-    conn = sqlite3.connect("reservations.db")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS reservations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nom TEXT,
-            telephone TEXT,
-            email TEXT,
-            date TEXT,
-            heure TEXT,
-            prestation TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/spreadsheets"
+]
 
+def get_credentials():
+    service_account_info = dict(st.secrets["gcp_service_account"])
+    return service_account.Credentials.from_service_account_info(
+        service_account_info,
+        scopes=SCOPES
+    )
+
+# --- Google Sheets ---
 def sauvegarder_rdv(nom, telephone, email, date_rdv, heure, prestation):
-    conn = sqlite3.connect("reservations.db")
-    conn.execute("""
-        INSERT INTO reservations (nom, telephone, email, date, heure, prestation)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (nom, telephone, email, str(date_rdv), heure, prestation))
-    conn.commit()
-    conn.close()
+    try:
+        credentials = get_credentials()
+        service = build("sheets", "v4", credentials=credentials)
+        sheet_id = st.secrets["SHEET_ID"]
+
+        valeurs = [[nom, telephone, email, str(date_rdv), heure, prestation]]
+        service.spreadsheets().values().append(
+            spreadsheetId=sheet_id,
+            range="A:F",
+            valueInputOption="RAW",
+            body={"values": valeurs}
+        ).execute()
+        return True
+    except Exception as e:
+        st.error(f"Erreur Google Sheets : {e}")
+        return False
 
 def charger_rdv():
-    conn = sqlite3.connect("reservations.db")
-    df = pd.read_sql("SELECT * FROM reservations ORDER BY date, heure", conn)
-    conn.close()
-    return df
+    try:
+        credentials = get_credentials()
+        service = build("sheets", "v4", credentials=credentials)
+        sheet_id = st.secrets["SHEET_ID"]
+
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range="A:F"
+        ).execute()
+
+        valeurs = result.get("values", [])
+        if not valeurs or len(valeurs) < 2:
+            return pd.DataFrame(columns=["nom", "telephone", "email", "date", "heure", "prestation"])
+
+        entetes = valeurs[0]
+        lignes = valeurs[1:]
+        return pd.DataFrame(lignes, columns=entetes)
+    except Exception as e:
+        st.error(f"Erreur chargement Google Sheets : {e}")
+        return pd.DataFrame()
 
 def heures_prises(date_rdv):
-    conn = sqlite3.connect("reservations.db")
-    cursor = conn.execute(
-        "SELECT heure FROM reservations WHERE date = ?", 
-        (str(date_rdv),)
-    )
-    heures = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    return heures
+    try:
+        df = charger_rdv()
+        if df.empty:
+            return []
+        return df[df["date"] == str(date_rdv)]["heure"].tolist()
+    except Exception as e:
+        st.error(f"Erreur heures prises : {e}")
+        return []
 
 # --- Email ---
 def envoyer_email(nom, email_client, date_rdv, heure, prestation):
@@ -94,12 +114,7 @@ Votre rendez-vous est confirmé !
 # --- Google Calendar ---
 def ajouter_au_calendar(nom, date_rdv, heure, prestation):
     try:
-        service_account_info = dict(st.secrets["gcp_service_account"])
-        credentials = service_account.Credentials.from_service_account_info(
-            service_account_info,
-            scopes=["https://www.googleapis.com/auth/calendar"]
-        )
-
+        credentials = get_credentials()
         service = build("calendar", "v3", credentials=credentials)
 
         heure_debut = datetime.strptime(f"{date_rdv} {heure}", "%Y-%m-%d %H:%M")
@@ -124,9 +139,6 @@ def ajouter_au_calendar(nom, date_rdv, heure, prestation):
         st.error(f"Erreur Google Calendar : {e}")
         return False
 
-# Initialiser la base de données
-init_db()
-
 # --- Interface ---
 st.set_page_config(page_title="Mon Salon de Coiffure", page_icon="💈")
 
@@ -150,7 +162,7 @@ if page == "📅 Réserver":
         toutes_les_heures = [
             "09:00", "09:45", "10:30", "11:15", "12:00", "12:45", "13:30",
             "14:15", "15:00", "16:00", "16:45", "17:30", "18:15", "19:00",
-            "19:45", "20:30", "21:15","22:00" , "22:45"
+            "19:45", "20:30", "21:15", "22:00", "22:45"
         ]
 
     heures_occupees = heures_prises(date_rdv)
@@ -164,7 +176,7 @@ if page == "📅 Réserver":
 
     prestation = st.selectbox("✂️ Prestation souhaitée", [
         "Coupe homme", "Coupe + Barbe", "Coupe enfant",
-        "Taper ou rafrechisment", "Barbe", " Petite barbe",
+        "Taper ou rafrechisment", "Barbe", "Petite barbe",
     ])
 
     st.divider()
