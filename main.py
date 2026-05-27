@@ -138,11 +138,62 @@ def ajouter_au_calendar(nom, date_rdv, heure, prestation):
     except Exception as e:
         st.error(f"Erreur Google Calendar : {e}")
         return False
+    
+    # --- Gestion des disponibilités ---
+
+def charger_disponibilites():
+    try:
+        credentials = get_credentials()
+        service = build("sheets", "v4", credentials=credentials)
+        sheet_id = st.secrets["SHEET_ID"]
+        result = service.spreadsheets().values().get(
+            spreadsheetId=sheet_id,
+            range="Disponibilites!A:B"
+        ).execute()
+        valeurs = result.get("values", [])
+        jours_bloques = []
+        heures_bloquees = []
+        for row in valeurs:
+            if len(row) >= 2:
+                if row[0] == "jour_bloque":
+                    jours_bloques.append(row[1])
+                elif row[0] == "heure_bloquee":
+                    heures_bloquees.append(row[1])
+        return jours_bloques, heures_bloquees
+    except Exception as e:
+        st.error(f"Erreur chargement disponibilités : {e}")
+        return [], []
+
+def sauvegarder_disponibilites(jours_bloques, heures_bloquees):
+    try:
+        credentials = get_credentials()
+        service = build("sheets", "v4", credentials=credentials)
+        sheet_id = st.secrets["SHEET_ID"]
+        valeurs = [["type", "valeur"]]
+        for j in jours_bloques:
+            valeurs.append(["jour_bloque", str(j)])
+        for h in heures_bloquees:
+            valeurs.append(["heure_bloquee", h])
+        service.spreadsheets().values().update(
+            spreadsheetId=sheet_id,
+            range="Disponibilites!A:B",
+            valueInputOption="RAW",
+            body={"values": valeurs}
+        ).execute()
+        return True
+    except Exception as e:
+        st.error(f"Erreur sauvegarde disponibilités : {e}")
+        return False
 
 # --- Interface ---
 st.set_page_config(page_title="Mon Salon de Coiffure", page_icon="💈")
 
-page = st.sidebar.selectbox("Navigation", ["📅 Réserver", "📋 Mes rendez-vous"])
+# Navigation
+page = st.sidebar.selectbox("Navigation", [
+    "📅 Réserver", 
+    "📋 Mes rendez-vous", 
+    "⚙️ Gérer les disponibilités"
+])
 
 if page == "📅 Réserver":
     st.title("💈 Mon Salon de Coiffure")
@@ -155,24 +206,40 @@ if page == "📅 Réserver":
 
     st.divider()
 
+    toutes_les_heures = [
+        "09:00", "09:45", "10:30", "11:15", "12:00", "12:45", "13:30",
+        "14:15", "15:00", "16:00", "16:45", "17:30", "18:15", "19:00",
+        "19:45", "20:30", "21:15", "22:00", "22:45"
+    ]
+
+    JOURS_AUTORISES = [4, 5, 6]  # vendredi=4, samedi=5, dimanche=6
+
     col1, col2 = st.columns(2)
     with col1:
         date_rdv = st.date_input("📅 Choisissez une date", min_value=date.today())
-    with col2:
-        toutes_les_heures = [
-            "09:00", "09:45", "10:30", "11:15", "12:00", "12:45", "13:30",
-            "14:15", "15:00", "16:00", "16:45", "17:30", "18:15", "19:00",
-            "19:45", "20:30", "21:15", "22:00", "22:45"
-        ]
+
+    jours_bloques, heures_bloquees = charger_disponibilites()
+
+    if date_rdv.weekday() not in JOURS_AUTORISES:
+        st.error("⚠️ Vous n'êtes disponible que du vendredi au dimanche.")
+        st.stop()
+
+    if str(date_rdv) in jours_bloques:
+        st.error("⚠️ Ce jour est bloqué, veuillez choisir une autre date.")
+        st.stop()
 
     heures_occupees = heures_prises(date_rdv)
-    heures_disponibles = [h for h in toutes_les_heures if h not in heures_occupees]
+    heures_disponibles = [
+        h for h in toutes_les_heures
+        if h not in heures_occupees and h not in heures_bloquees
+    ]
 
-    if heures_disponibles:
-        heure_rdv = st.selectbox("🕐 Choisissez une heure", heures_disponibles)
-    else:
-        st.error("⚠️ Aucune heure disponible pour cette date, choisissez une autre date.")
-        st.stop()
+    with col2:
+        if heures_disponibles:
+            heure_rdv = st.selectbox("🕐 Choisissez une heure", heures_disponibles)
+        else:
+            st.error("⚠️ Aucune heure disponible pour cette date, choisissez une autre date.")
+            st.stop()
 
     prestation = st.selectbox("✂️ Prestation souhaitée", [
         "Coupe homme", "Coupe + Barbe", "Coupe enfant",
@@ -207,5 +274,63 @@ elif page == "📋 Mes rendez-vous":
             st.info("Aucun rendez-vous pour le moment.")
         else:
             st.dataframe(df, use_container_width=True)
+    elif mot_de_passe != "":
+        st.error("❌ Mot de passe incorrect !")
+
+elif page == "⚙️ Gérer les disponibilités":
+    st.title("⚙️ Gérer les disponibilités")
+    st.divider()
+
+    mot_de_passe = st.text_input("🔒 Mot de passe admin", type="password")
+
+    if mot_de_passe == os.getenv("ADMIN_PASSWORD"):
+        jours_bloques, heures_bloquees = charger_disponibilites()
+
+        st.subheader("📅 Bloquer / Débloquer un jour")
+        date_a_gerer = st.date_input("Choisir un jour", min_value=date.today())
+        col1, col2 = st.columns(2)
+        with col1:
+            if str(date_a_gerer) not in jours_bloques:
+                if st.button("🔴 Bloquer ce jour"):
+                    jours_bloques.append(str(date_a_gerer))
+                    sauvegarder_disponibilites(jours_bloques, heures_bloquees)
+                    st.success(f"Jour {date_a_gerer} bloqué !")
+                    st.rerun()
+            else:
+                if st.button("🟢 Débloquer ce jour"):
+                    jours_bloques.remove(str(date_a_gerer))
+                    sauvegarder_disponibilites(jours_bloques, heures_bloquees)
+                    st.success(f"Jour {date_a_gerer} débloqué !")
+                    st.rerun()
+
+        if jours_bloques:
+            st.info("Jours bloqués : " + ", ".join(jours_bloques))
+
+        st.divider()
+        st.subheader("🕐 Bloquer / Débloquer des heures")
+
+        toutes_les_heures = [
+            "09:00", "09:45", "10:30", "11:15", "12:00", "12:45", "13:30",
+            "14:15", "15:00", "16:00", "16:45", "17:30", "18:15", "19:00",
+            "19:45", "20:30", "21:15", "22:00", "22:45"
+        ]
+
+        for heure in toutes_les_heures:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                statut = "🔴 Bloquée" if heure in heures_bloquees else "🟢 Disponible"
+                st.write(f"{heure} — {statut}")
+            with col2:
+                if heure in heures_bloquees:
+                    if st.button("Débloquer", key=f"deb_{heure}"):
+                        heures_bloquees.remove(heure)
+                        sauvegarder_disponibilites(jours_bloques, heures_bloquees)
+                        st.rerun()
+                else:
+                    if st.button("Bloquer", key=f"bloc_{heure}"):
+                        heures_bloquees.append(heure)
+                        sauvegarder_disponibilites(jours_bloques, heures_bloquees)
+                        st.rerun()
+
     elif mot_de_passe != "":
         st.error("❌ Mot de passe incorrect !")
