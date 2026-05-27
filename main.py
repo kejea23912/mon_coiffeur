@@ -153,18 +153,21 @@ def charger_disponibilites():
         valeurs = result.get("values", [])
         jours_bloques = []
         heures_bloquees = []
+        jours_debloques = []
         for row in valeurs:
             if len(row) >= 2:
                 if row[0] == "jour_bloque":
                     jours_bloques.append(row[1])
                 elif row[0] == "heure_bloquee":
                     heures_bloquees.append(row[1])
-        return jours_bloques, heures_bloquees
+                elif row[0] == "jour_debloque":
+                    jours_debloques.append(row[1])
+        return jours_bloques, heures_bloquees, jours_debloques
     except Exception as e:
         st.error(f"Erreur chargement disponibilités : {e}")
-        return [], []
+        return [], [], []
 
-def sauvegarder_disponibilites(jours_bloques, heures_bloquees):
+def sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques):
     try:
         credentials = get_credentials()
         service = build("sheets", "v4", credentials=credentials)
@@ -174,6 +177,8 @@ def sauvegarder_disponibilites(jours_bloques, heures_bloquees):
             valeurs.append(["jour_bloque", str(j)])
         for h in heures_bloquees:
             valeurs.append(["heure_bloquee", h])
+        for j in jours_debloques:
+            valeurs.append(["jour_debloque", str(j)])
         service.spreadsheets().values().update(
             spreadsheetId=sheet_id,
             range="Disponibilites!A:B",
@@ -220,7 +225,7 @@ if page == "📅 Réserver":
 
     jours_bloques, heures_bloquees = charger_disponibilites()
 
-    if date_rdv.weekday() not in JOURS_AUTORISES:
+    if date_rdv.weekday() not in JOURS_AUTORISES and str(date_rdv) not in jours_debloques:
         st.error("⚠️ Vous n'êtes disponible que du vendredi au dimanche.")
         st.stop()
 
@@ -284,7 +289,7 @@ elif page == "⚙️ Gérer les disponibilités":
     mot_de_passe = st.text_input("🔒 Mot de passe admin", type="password")
 
     if mot_de_passe == os.getenv("ADMIN_PASSWORD"):
-        jours_bloques, heures_bloquees = charger_disponibilites()
+        jours_bloques, heures_bloquees, jours_debloquer  = charger_disponibilites()
 
         st.subheader("📅 Bloquer / Débloquer un jour")
         date_a_gerer = st.date_input("Choisir un jour", min_value=date.today())
