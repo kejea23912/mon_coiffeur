@@ -223,7 +223,7 @@ if page == "📅 Réserver":
     with col1:
         date_rdv = st.date_input("📅 Choisissez une date", min_value=date.today())
 
-    jours_bloques, heures_bloquees = charger_disponibilites()
+    jours_bloques, heures_bloquees, jours_debloques = charger_disponibilites()
 
     if date_rdv.weekday() not in JOURS_AUTORISES and str(date_rdv) not in jours_debloques:
         st.error("⚠️ Vous n'êtes disponible que du vendredi au dimanche.")
@@ -289,24 +289,45 @@ elif page == "⚙️ Gérer les disponibilités":
     mot_de_passe = st.text_input("🔒 Mot de passe admin", type="password")
 
     if mot_de_passe == os.getenv("ADMIN_PASSWORD"):
-        jours_bloques, heures_bloquees, jours_debloquer  = charger_disponibilites()
+        jours_bloques, heures_bloquees, jours_debloques  = charger_disponibilites()
 
         st.subheader("📅 Bloquer / Débloquer un jour")
-        date_a_gerer = st.date_input("Choisir un jour", min_value=date.today())
-        col1, col2 = st.columns(2)
-        with col1:
-            if str(date_a_gerer) not in jours_bloques:
-                if st.button("🔴 Bloquer ce jour"):
-                    jours_bloques.append(str(date_a_gerer))
-                    sauvegarder_disponibilites(jours_bloques, heures_bloquees)
-                    st.success(f"Jour {date_a_gerer} bloqué !")
-                    st.rerun()
-            else:
-                if st.button("🟢 Débloquer ce jour"):
-                    jours_bloques.remove(str(date_a_gerer))
-                    sauvegarder_disponibilites(jours_bloques, heures_bloquees)
-                    st.success(f"Jour {date_a_gerer} débloqué !")
-                    st.rerun()
+date_a_gerer = st.date_input("Choisir un jour", min_value=date.today())
+
+JOURS_AUTORISES = [4, 5, 6]
+est_weekend = date_a_gerer.weekday() in JOURS_AUTORISES
+est_bloque = str(date_a_gerer) in jours_bloques
+est_debloque = str(date_a_gerer) in jours_debloques
+
+if est_weekend:
+    # Logique normale pour vendredi/samedi/dimanche
+    if not est_bloque:
+        if st.button("🔴 Bloquer ce jour"):
+            jours_bloques.append(str(date_a_gerer))
+            sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+            st.success(f"Jour {date_a_gerer} bloqué !")
+            st.rerun()
+    else:
+        if st.button("🟢 Débloquer ce jour"):
+            jours_bloques.remove(str(date_a_gerer))
+            sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+            st.success(f"Jour {date_a_gerer} débloqué !")
+            st.rerun()
+else:
+    # Jour de semaine (lundi→jeudi)
+    st.info(f"📌 {date_a_gerer.strftime('%A')} — jour normalement fermé")
+    if not est_debloque:
+        if st.button("🟢 Débloquer exceptionnellement ce jour"):
+            jours_debloques.append(str(date_a_gerer))
+            sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+            st.success(f"Jour {date_a_gerer} ouvert exceptionnellement !")
+            st.rerun()
+    else:
+        if st.button("🔴 Re-bloquer ce jour"):
+            jours_debloques.remove(str(date_a_gerer))
+            sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+            st.success(f"Jour {date_a_gerer} à nouveau fermé.")
+            st.rerun()
 
         if jours_bloques:
             st.info("Jours bloqués : " + ", ".join(jours_bloques))
@@ -329,12 +350,12 @@ elif page == "⚙️ Gérer les disponibilités":
                 if heure in heures_bloquees:
                     if st.button("Débloquer", key=f"deb_{heure}"):
                         heures_bloquees.remove(heure)
-                        sauvegarder_disponibilites(jours_bloques, heures_bloquees)
+                        sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
                         st.rerun()
                 else:
                     if st.button("Bloquer", key=f"bloc_{heure}"):
                         heures_bloquees.append(heure)
-                        sauvegarder_disponibilites(jours_bloques, heures_bloquees)
+                        sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
                         st.rerun()
 
     elif mot_de_passe != "":
