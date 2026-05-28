@@ -358,5 +358,5 @@ else:
                         sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
                         st.rerun()
 
-    elif mot_de_passe != "":
+        elif mot_de_passe != "":
         st.error("❌ Mot de passe incorrect !")
