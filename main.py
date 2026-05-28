@@ -292,12 +292,12 @@ elif page == "⚙️ Gérer les disponibilités":
         jours_bloques, heures_bloquees, jours_debloques  = charger_disponibilites()
 
         st.subheader("📅 Bloquer / Débloquer un jour")
-date_a_gerer = st.date_input("Choisir un jour", min_value=date.today())
+        date_a_gerer = st.date_input("Choisir un jour", min_value=date.today())
 
-JOURS_AUTORISES = [4, 5, 6]
-est_weekend = date_a_gerer.weekday() in JOURS_AUTORISES
-est_bloque = str(date_a_gerer) in jours_bloques
-est_debloque = str(date_a_gerer) in jours_debloques
+        JOURS_AUTORISES = [4, 5, 6]
+        est_weekend = date_a_gerer.weekday() in JOURS_AUTORISES
+        est_bloque = str(date_a_gerer) in jours_bloques
+        est_debloque = str(date_a_gerer) in jours_debloques
 
 if est_weekend:
     # Logique normale pour vendredi/samedi/dimanche
