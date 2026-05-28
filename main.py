@@ -59,7 +59,7 @@ def charger_rdv():
 
         valeurs = result.get("values", [])
         if not valeurs or len(valeurs) < 2:
-            return pd.DataFrame(columns=["nom", "telephone", "email", "date", "heure", "prestation"])
+            return pd.DataFrame(columns=["nom", "telephone", "Email", "date", "heure", "Prestation"])
 
         entetes = valeurs[0]
         lignes = valeurs[1:]
@@ -73,7 +73,9 @@ def heures_prises(date_rdv):
         df = charger_rdv()
         if df.empty:
             return []
-        return df[df["date"] == str(date_rdv)]["heure"].tolist()
+        col_date = df.columns[3]  # 4ème colonne = Date
+        col_heure = df.columns[4]  # 5ème colonne = Heure
+        return df[df[col_date] == str(date_rdv)][col_heure].tolist()
     except Exception as e:
         st.error(f"Erreur heures prises : {e}")
         return []
@@ -138,8 +140,8 @@ def ajouter_au_calendar(nom, date_rdv, heure, prestation):
     except Exception as e:
         st.error(f"Erreur Google Calendar : {e}")
         return False
-    
-    # --- Gestion des disponibilités ---
+
+# --- Gestion des disponibilités ---
 
 def charger_disponibilites():
     try:
@@ -195,8 +197,8 @@ st.set_page_config(page_title="Mon Salon de Coiffure", page_icon="💈")
 
 # Navigation
 page = st.sidebar.selectbox("Navigation", [
-    "📅 Réserver", 
-    "📋 Mes rendez-vous", 
+    "📅 Réserver",
+    "📋 Mes rendez-vous",
     "⚙️ Gérer les disponibilités"
 ])
 
@@ -289,7 +291,7 @@ elif page == "⚙️ Gérer les disponibilités":
     mot_de_passe = st.text_input("🔒 Mot de passe admin", type="password")
 
     if mot_de_passe == os.getenv("ADMIN_PASSWORD"):
-        jours_bloques, heures_bloquees, jours_debloques  = charger_disponibilites()
+        jours_bloques, heures_bloquees, jours_debloques = charger_disponibilites()
 
         st.subheader("📅 Bloquer / Débloquer un jour")
         date_a_gerer = st.date_input("Choisir un jour", min_value=date.today())
@@ -299,43 +301,43 @@ elif page == "⚙️ Gérer les disponibilités":
         est_bloque = str(date_a_gerer) in jours_bloques
         est_debloque = str(date_a_gerer) in jours_debloques
 
-    if est_weekend:
-    # Logique normale pour vendredi/samedi/dimanche
-        if not est_bloque:
-            if st.button("🔴 Bloquer ce jour"):
-                jours_bloques.append(str(date_a_gerer))
-                sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
-                st.success(f"Jour {date_a_gerer} bloqué !")
-                st.rerun()
+        if est_weekend:
+            if not est_bloque:
+                if st.button("🔴 Bloquer ce jour"):
+                    jours_bloques.append(str(date_a_gerer))
+                    sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+                    st.success(f"Jour {date_a_gerer} bloqué !")
+                    st.rerun()
+            else:
+                if st.button("🟢 Débloquer ce jour"):
+                    jours_bloques.remove(str(date_a_gerer))
+                    sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+                    st.success(f"Jour {date_a_gerer} débloqué !")
+                    st.rerun()
         else:
-            if st.button("🟢 Débloquer ce jour"):
-                jours_bloques.remove(str(date_a_gerer))
-                sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
-                st.success(f"Jour {date_a_gerer} débloqué !")
-                st.rerun()
-    else:
-        # Jour de semaine (lundi→jeudi)
-        st.info(f"📌 {date_a_gerer.strftime('%A')} — jour normalement fermé")
-        if not est_debloque:
-            if st.button("🟢 Débloquer exceptionnellement ce jour"):
-                jours_debloques.append(str(date_a_gerer))
-                sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
-                st.success(f"Jour {date_a_gerer} ouvert exceptionnellement !")
-                st.rerun()
-        else:
-            if st.button("🔴 Re-bloquer ce jour"):
-                jours_debloques.remove(str(date_a_gerer))
-            sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
-            st.success(f"Jour {date_a_gerer} à nouveau fermé.")
-            st.rerun()
+            st.info(f"📌 {date_a_gerer.strftime('%A')} — jour normalement fermé")
+            if not est_debloque:
+                if st.button("🟢 Débloquer exceptionnellement ce jour"):
+                    jours_debloques.append(str(date_a_gerer))
+                    sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+                    st.success(f"Jour {date_a_gerer} ouvert exceptionnellement !")
+                    st.rerun()
+            else:
+                if st.button("🔴 Re-bloquer ce jour"):
+                    jours_debloques.remove(str(date_a_gerer))
+                    sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+                    st.success(f"Jour {date_a_gerer} à nouveau fermé.")
+                    st.rerun()
 
-            if jours_bloques:
-                st.info("Jours bloqués : " + ", ".join(jours_bloques))
+        if jours_bloques:
+            st.info("Jours bloqués : " + ", ".join(jours_bloques))
+        if jours_debloques:
+            st.info("Jours ouverts exceptionnellement : " + ", ".join(jours_debloques))
 
-            st.divider()
-            st.subheader("🕐 Bloquer / Débloquer des heures")
+        st.divider()
+        st.subheader("🕐 Bloquer / Débloquer des heures")
 
-            toutes_les_heures = [
+        toutes_les_heures = [
             "09:00", "09:45", "10:30", "11:15", "12:00", "12:45", "13:30",
             "14:15", "15:00", "16:00", "16:45", "17:30", "18:15", "19:00",
             "19:45", "20:30", "21:15", "22:00", "22:45"
@@ -357,5 +359,6 @@ elif page == "⚙️ Gérer les disponibilités":
                         heures_bloquees.append(heure)
                         sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
                         st.rerun()
-elif mot_de_passe != "":
-    st.error("❌ Mot de passe incorrect !")
+
+    elif mot_de_passe != "":
+        st.error("❌ Mot de passe incorrect !")
