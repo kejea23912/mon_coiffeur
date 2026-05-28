@@ -357,6 +357,5 @@ elif page == "⚙️ Gérer les disponibilités":
                         heures_bloquees.append(heure)
                         sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
                         st.rerun()
-
 elif mot_de_passe != "":
-        st.error("❌ Mot de passe incorrect !")
+    st.error("❌ Mot de passe incorrect !")
