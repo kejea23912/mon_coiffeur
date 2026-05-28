@@ -299,43 +299,43 @@ elif page == "⚙️ Gérer les disponibilités":
         est_bloque = str(date_a_gerer) in jours_bloques
         est_debloque = str(date_a_gerer) in jours_debloques
 
-if est_weekend:
+    if est_weekend:
     # Logique normale pour vendredi/samedi/dimanche
-    if not est_bloque:
-        if st.button("🔴 Bloquer ce jour"):
-            jours_bloques.append(str(date_a_gerer))
-            sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
-            st.success(f"Jour {date_a_gerer} bloqué !")
-            st.rerun()
+        if not est_bloque:
+            if st.button("🔴 Bloquer ce jour"):
+                jours_bloques.append(str(date_a_gerer))
+                sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+                st.success(f"Jour {date_a_gerer} bloqué !")
+                st.rerun()
+        else:
+            if st.button("🟢 Débloquer ce jour"):
+                jours_bloques.remove(str(date_a_gerer))
+                sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+                st.success(f"Jour {date_a_gerer} débloqué !")
+                st.rerun()
     else:
-        if st.button("🟢 Débloquer ce jour"):
-            jours_bloques.remove(str(date_a_gerer))
-            sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
-            st.success(f"Jour {date_a_gerer} débloqué !")
-            st.rerun()
-else:
-    # Jour de semaine (lundi→jeudi)
-    st.info(f"📌 {date_a_gerer.strftime('%A')} — jour normalement fermé")
-    if not est_debloque:
-        if st.button("🟢 Débloquer exceptionnellement ce jour"):
-            jours_debloques.append(str(date_a_gerer))
-            sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
-            st.success(f"Jour {date_a_gerer} ouvert exceptionnellement !")
-            st.rerun()
-    else:
-        if st.button("🔴 Re-bloquer ce jour"):
+        # Jour de semaine (lundi→jeudi)
+        st.info(f"📌 {date_a_gerer.strftime('%A')} — jour normalement fermé")
+        if not est_debloque:
+            if st.button("🟢 Débloquer exceptionnellement ce jour"):
+                jours_debloques.append(str(date_a_gerer))
+                sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
+                st.success(f"Jour {date_a_gerer} ouvert exceptionnellement !")
+                st.rerun()
+        else:
+            if st.button("🔴 Re-bloquer ce jour"):
             jours_debloques.remove(str(date_a_gerer))
             sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
             st.success(f"Jour {date_a_gerer} à nouveau fermé.")
             st.rerun()
 
-        if jours_bloques:
+            if jours_bloques:
             st.info("Jours bloqués : " + ", ".join(jours_bloques))
 
-        st.divider()
-        st.subheader("🕐 Bloquer / Débloquer des heures")
+            st.divider()
+            st.subheader("🕐 Bloquer / Débloquer des heures")
 
-        toutes_les_heures = [
+            toutes_les_heures = [
             "09:00", "09:45", "10:30", "11:15", "12:00", "12:45", "13:30",
             "14:15", "15:00", "16:00", "16:45", "17:30", "18:15", "19:00",
             "19:45", "20:30", "21:15", "22:00", "22:45"
@@ -358,5 +358,5 @@ else:
                         sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
                         st.rerun()
 
-        elif mot_de_passe != "":
-        st.error("❌ Mot de passe incorrect !")
+    elif mot_de_passe != "":
+    st.error("❌ Mot de passe incorrect !")
