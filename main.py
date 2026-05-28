@@ -324,13 +324,13 @@ elif page == "⚙️ Gérer les disponibilités":
                 st.rerun()
         else:
             if st.button("🔴 Re-bloquer ce jour"):
-            jours_debloques.remove(str(date_a_gerer))
+                jours_debloques.remove(str(date_a_gerer))
             sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
             st.success(f"Jour {date_a_gerer} à nouveau fermé.")
             st.rerun()
 
             if jours_bloques:
-            st.info("Jours bloqués : " + ", ".join(jours_bloques))
+                st.info("Jours bloqués : " + ", ".join(jours_bloques))
 
             st.divider()
             st.subheader("🕐 Bloquer / Débloquer des heures")
@@ -358,5 +358,5 @@ elif page == "⚙️ Gérer les disponibilités":
                         sauvegarder_disponibilites(jours_bloques, heures_bloquees, jours_debloques)
                         st.rerun()
 
-    elif mot_de_passe != "":
-    st.error("❌ Mot de passe incorrect !")
+elif mot_de_passe != "":
+        st.error("❌ Mot de passe incorrect !")
